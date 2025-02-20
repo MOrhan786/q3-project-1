@@ -26,6 +26,10 @@ st.write("Transform your files between CSV and Excel format with built-in data c
 # File Uploader
 uploaded_files = st.file_uploader("📂 Upload your files (CSV or Excel):", type=["csv", "xlsx"], accept_multiple_files=True)
 
+# Store DataFrames in Session State to Prevent Reset
+if "dataframes" not in st.session_state:
+    st.session_state.dataframes = {}
+
 if uploaded_files:
     for file in uploaded_files:
         file_ext = os.path.splitext(file.name)[-1].lower()  # Extracts file extension
@@ -39,6 +43,9 @@ if uploaded_files:
             st.error(f"❌ Unsupported file type: {file_ext}")
             continue  # Skip this file and process the next one
 
+        # Store in Session State
+        st.session_state.dataframes[file.name] = df
+
         # Display File Details
         st.subheader(f"🔍 Preview - {file.name}")
         st.dataframe(df.head())
@@ -51,7 +58,7 @@ if uploaded_files:
 
             with col1:
                 if st.button(f"🚫 Remove Duplicates from {file.name}"):
-                    df = df.drop_duplicates()  # Fixed inplace issue
+                    st.session_state.dataframes[file.name] = df.drop_duplicates()
                     st.success("✅ Duplicates removed successfully!")
 
             with col2:
@@ -59,6 +66,7 @@ if uploaded_files:
                     numeric_cols = df.select_dtypes(include=['number']).columns
                     if not numeric_cols.empty:
                         df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())
+                        st.session_state.dataframes[file.name] = df  # Save updates
                         st.success("✅ Missing values have been filled!")
                     else:
                         st.warning("⚠️ No numeric columns found to fill missing values.")
@@ -66,7 +74,9 @@ if uploaded_files:
         # Column Selection
         st.subheader("📌 Select Columns to Keep")
         selected_columns = st.multiselect(f"Choose columns for {file.name}", df.columns, default=df.columns)
-        df = df[selected_columns] if selected_columns else df  # Prevent empty selection
+        if selected_columns:
+            df = df[selected_columns]
+            st.session_state.dataframes[file.name] = df  # Update Session State
 
         # Data Visualization
         st.subheader("📊 Data Visualization")
@@ -91,7 +101,8 @@ if uploaded_files:
                 mime_type = "text/csv"
 
             elif conversion_type == "Excel":
-                df.to_excel(buffer, index=False)  # Fixed incorrect .to.to_excel() issue
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    df.to_excel(writer, index=False, sheet_name="Sheet1")
                 file_name = file.name.replace(file_ext, ".xlsx")
                 mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
