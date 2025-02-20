@@ -57,21 +57,26 @@ if uploaded_files:
             with col2:
                 if st.button(f"🛠️ Fill Missing Values in {file.name}"):
                     numeric_cols = df.select_dtypes(include=['number']).columns
-                    df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())
-                    st.success("✅ Missing values have been filled!")
+                    if not numeric_cols.empty:
+                        df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())
+                        st.success("✅ Missing values have been filled!")
+                    else:
+                        st.warning("⚠️ No numeric columns found to fill missing values.")
 
         # Column Selection
         st.subheader("📌 Select Columns to Keep")
         selected_columns = st.multiselect(f"Choose columns for {file.name}", df.columns, default=df.columns)
-        df = df[selected_columns]
+        df = df[selected_columns] if selected_columns else df  # Prevent empty selection
 
         # Data Visualization
         st.subheader("📊 Data Visualization")
+        numeric_df = df.select_dtypes(include=['number'])  # Select only numeric columns
+        
         if st.checkbox(f"Show Visualization for {file.name}"):
-            if df.select_dtypes(include=['number']).shape[1] >= 2:
-                st.bar_chart(df.select_dtypes(include=['number']).iloc[:, :2])
+            if numeric_df.shape[1] >= 1:
+                st.bar_chart(numeric_df)  # Display bar chart with all numeric data
             else:
-                st.warning("⚠️ Not enough numeric columns for visualization!")
+                st.warning("⚠️ No numeric columns available for visualization.")
 
         # Conversion Options
         st.subheader("🔄 Conversion Options")
